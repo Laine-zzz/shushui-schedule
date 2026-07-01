@@ -289,10 +289,10 @@ let sb=null, authEmail=null, pushTimer=null, cloudReady=false;
 const startFromTime = t => (t && t.includes('-')) ? t.split('-')[0].trim() : (t||'');
 // 設定格式遷移（可重複執行、安全）
 function migrateCfg(){
-  if(!cfg.weekly) cfg.weekly = structuredClone(DEFAULTS.weekly);
+  if(!cfg.weekly) cfg.weekly = clone(DEFAULTS.weekly);
   if(cfg.showOut===undefined) cfg.showOut = true;
-  if(!cfg.templates) cfg.templates = structuredClone(DEFAULTS.templates);
-  if(!cfg.homePM) cfg.homePM = structuredClone(DEFAULTS.homePM);
+  if(!cfg.templates) cfg.templates = clone(DEFAULTS.templates);
+  if(!cfg.homePM) cfg.homePM = clone(DEFAULTS.homePM);
   ['zhongshan','youmin'].forEach(k=>{ const t=cfg.templates[k]; if(t && !t.start) t.start=startFromTime(t.time)||'12:00'; });
   if(cfg.homePM && !cfg.homePM.start) cfg.homePM.start=startFromTime(cfg.homePM.time)||'14:00';
 }
@@ -311,7 +311,8 @@ if(!localStorage.getItem('ashui_migrated_v2')){
 let cur = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()+1}; })();
 
 /* ===================== 工具 ===================== */
-function load(k,def){ try{ const v=JSON.parse(localStorage.getItem('ashui_'+k)); return v??structuredClone(def);}catch(e){return structuredClone(def);} }
+function clone(o){ return JSON.parse(JSON.stringify(o)); }   // 相容舊版 Safari（不用 structuredClone）
+function load(k,def){ try{ const v=JSON.parse(localStorage.getItem('ashui_'+k)); return v??clone(def);}catch(e){return clone(def);} }
 function save(k,v){ localStorage.setItem('ashui_'+k, JSON.stringify(v)); cloudSave(); }
 function roc(y){ return y-1911; }
 function pad(n){ return String(n).padStart(2,'0'); }
@@ -668,7 +669,7 @@ function saveSettings(){
   cfg.showOut=document.getElementById('s_showout').checked;
   save('cfg',cfg); alert('已儲存設定'); renderCare();
 }
-function resetSettings(){ if(confirm('還原成預設值？')){ cfg=structuredClone(DEFAULTS); save('cfg',cfg); renderSettings(); renderCare(); } }
+function resetSettings(){ if(confirm('還原成預設值？')){ cfg=clone(DEFAULTS); save('cfg',cfg); renderSettings(); renderCare(); } }
 
 /* ===================== 分頁 / modal ===================== */
 function switchTab(t){
@@ -697,7 +698,7 @@ function importData(file){
       const doc=JSON.parse(r.result);
       if(!doc || (!doc.cfg && !doc.care)) throw new Error('格式不符');
       if(!confirm('匯入會覆蓋目前全部資料，確定？')) return;
-      cfg=Object.assign(structuredClone(DEFAULTS), doc.cfg||{}); migrateCfg();
+      cfg=Object.assign(clone(DEFAULTS), doc.cfg||{}); migrateCfg();
       store=doc.care||{};
       save('cfg',cfg); save('care',store);   // 同步寫本機＋雲端
       renderCare(); alert('匯入完成');
@@ -708,7 +709,7 @@ function importData(file){
 
 /* ===================== 雲端協作 (Supabase) ===================== */
 function setCloudData(doc){
-  cfg = Object.assign(structuredClone(DEFAULTS), doc.cfg||{});
+  cfg = Object.assign(clone(DEFAULTS), doc.cfg||{});
   migrateCfg();
   store = doc.care || {};
 }
