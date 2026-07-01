@@ -124,7 +124,8 @@
   </div>
   <div id="acct" class="acct noprint" style="display:none">
     <span id="acctEmail" class="muted"></span>
-    <button class="tab" onclick="signOut()">登出</button>
+    <button class="tab" id="loginBtnHeader" onclick="showGate()" style="display:none">登入以編輯</button>
+    <button class="tab" id="logoutBtn" onclick="signOut()">登出</button>
   </div>
 </header>
 
@@ -283,7 +284,7 @@ const DOW_NAMES = ['日','一','二','三','四','五','六'];
 const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
 const SUPA_KEY='sb_publishable_Fvn4olj6jWuxbRU3Sqfyqw_S8XPefdj';
 const CLOUD = location.protocol.startsWith('http');   // file:// 打開＝純本機模式
-let sb=null, authEmail=null, pushTimer=null, cloudReady=false, authStarted=false, rtSubscribed=false;
+let sb=null, authEmail=null, pushTimer=null, cloudReady=false, authStarted=false, rtSubscribed=false, readOnly=false;
 
 // 舊資料：time 字串 → start 開始時間
 const startFromTime = t => (t && t.includes('-')) ? t.split('-')[0].trim() : (t||'');
@@ -388,6 +389,7 @@ function syncWeekly(mm,k){
   if(changed) save('care',store);
 }
 function regenMonth(){
+  if(!requireEdit()) return;
   if(!confirm('整月重排：清除本月所有手動調整、完全依「每週固定安排」重排，確定？')) return;
   const k=key(cur.y,cur.m); genDefault(k); renderCare();
 }
@@ -492,8 +494,13 @@ function stepMonth(dir){
 }
 
 /* ===================== 日編輯 ===================== */
+function requireEdit(){
+  if(readOnly){ alert('目前是「檢視模式」。請點右上角「登入以編輯」，用白名單 email 登入後才能修改。'); return false; }
+  return true;
+}
 let editDK=null;
 function openDay(dk){
+  if(!requireEdit()) return;
   editDK=dk;
   const mm=getMonth(); const day=mm.days[dk];
   const [y,m,d]=dk.split('-').map(Number);
@@ -563,6 +570,7 @@ function dmAddSession(){
   recalcEnds();
 }
 function dmSave(){
+  if(!requireEdit()) return;
   const mm=getMonth(); const day=mm.days[editDK];
   const t=[...document.querySelectorAll('#dmType button')].find(b=>b.classList.contains('on'))?.dataset.t||'off';
   const sessions=[];
@@ -652,6 +660,7 @@ function itemName(k){ return ITEMS.find(([x])=>x===k)[1]; }
 function num(id){ return +document.getElementById(id).value||0; }
 function val(id){ return document.getElementById(id).value; }
 function saveSettings(){
+  if(!requireEdit()) return;
   cfg.monthlyCap=num('s_cap');
   for(const[k] of ITEMS) cfg.prices[k]=num('p_'+k);
   cfg.accompanyDailyMax=num('s_acc');
@@ -669,7 +678,7 @@ function saveSettings(){
   cfg.showOut=document.getElementById('s_showout').checked;
   save('cfg',cfg); alert('已儲存設定'); renderCare();
 }
-function resetSettings(){ if(confirm('還原成預設值？')){ cfg=clone(DEFAULTS); save('cfg',cfg); renderSettings(); renderCare(); } }
+function resetSettings(){ if(!requireEdit()) return; if(confirm('還原成預設值？')){ cfg=clone(DEFAULTS); save('cfg',cfg); renderSettings(); renderCare(); } }
 
 /* ===================== 分頁 / modal ===================== */
 function switchTab(t){
@@ -691,6 +700,7 @@ function exportData(){
   a.download='阿水排班備份.json'; a.click();
 }
 function importData(file){
+  if(!requireEdit()) return;
   if(!file) return;
   const r=new FileReader();
   r.onload=()=>{
@@ -741,12 +751,23 @@ function showGate(msg){
 function showApp(){
   document.getElementById('loginGate').style.display='none';
   document.getElementById('appWrap').style.display='';
-  const a=document.getElementById('acct'); a.style.display='flex';
-  document.getElementById('acctEmail').textContent=authEmail;
+  document.getElementById('acct').style.display='flex';
+  document.getElementById('acctEmail').textContent = readOnly ? '👁 檢視模式（唯讀）' : authEmail;
+  document.getElementById('loginBtnHeader').style.display = readOnly ? '' : 'none';
+  document.getElementById('logoutBtn').style.display = readOnly ? 'none' : '';
+}
+// 未登入：直接載入資料唯讀檢視
+async function enterViewMode(){
+  readOnly=true;
+  try{
+    const { data, error } = await sb.from('schedule').select('data').eq('id','main').maybeSingle();
+    if(!error && data && data.data && data.data.cfg) setCloudData(data.data);
+  }catch(e){ /* 讀不到就顯示預設 */ }
+  showApp(); renderCare(); subscribeRealtime();
 }
 async function afterLogin(session){
   if(authStarted) return;      // 避免 getSession 與 onAuthStateChange 重複觸發
-  authStarted=true;
+  authStarted=true; readOnly=false;
   authEmail = session.user.email;
   // 嘗試讀取（非白名單會被 RLS 擋，讀不到）
   const { data, error } = await sb.from('schedule').select('data').eq('id','main').maybeSingle();
@@ -776,8 +797,8 @@ function subscribeRealtime(){
 function localOnly(){ document.getElementById('appWrap').style.display=''; renderCare(); }
 async function boot(){
   if(!CLOUD){ localOnly(); return; }              // 本機檔案：離線單機模式
-  showGate();                                     // 先顯示登入畫面，避免整片空白
   if(!window.supabase){
+    showGate();
     document.getElementById('loginHint').textContent='登入元件載入失敗，請重新整理；若使用 Brave/廣告攔截，請對本站關閉防護（Shields）。';
     return;
   }
@@ -786,7 +807,9 @@ async function boot(){
     sb.auth.onAuthStateChange((_ev, session)=>{ if(session && !authStarted) afterLogin(session); });
     const { data:{ session } } = await sb.auth.getSession();
     if(session) afterLogin(session);
+    else enterViewMode();
   }catch(e){
+    showGate();
     document.getElementById('loginHint').textContent='初始化錯誤：'+(e && e.message ? e.message : e);
   }
 }
