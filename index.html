@@ -96,6 +96,23 @@
     .cell{min-height:88px}
   }
 </style>
+<script>
+  // 錯誤攔截：把載入錯誤直接印在畫面上，方便診斷
+  window.addEventListener('error', function(e){
+    var box=document.getElementById('errbox')||document.createElement('pre');
+    box.id='errbox';
+    box.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;margin:0;padding:12px;background:#7f1d1d;color:#fff;font:12px/1.4 monospace;white-space:pre-wrap;z-index:9999';
+    box.textContent += 'JS錯誤：'+(e.message||'')+'\n  '+(e.filename||'')+':'+(e.lineno||'')+':'+(e.colno||'')+'\n';
+    if(!box.parentNode) document.documentElement.appendChild(box);
+  });
+  window.addEventListener('unhandledrejection', function(e){
+    var box=document.getElementById('errbox')||document.createElement('pre');
+    box.id='errbox';
+    box.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;margin:0;padding:12px;background:#7f1d1d;color:#fff;font:12px/1.4 monospace;white-space:pre-wrap;z-index:9999';
+    box.textContent += 'Promise錯誤：'+((e.reason&&e.reason.message)||e.reason||'')+'\n';
+    if(!box.parentNode) document.documentElement.appendChild(box);
+  });
+</script>
 <script src="./supabase.js"></script>
 </head>
 <body>
