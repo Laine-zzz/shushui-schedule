@@ -85,22 +85,18 @@
   .seg button.on{background:#111827;color:#fff}
   /* respite */
   .rlist{width:100%}
-  /* 手機清單(agenda) */
-  .agenda{display:none}
-  .tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;color:#fff}
-  .agrow{display:flex;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start}
-  .agrow:last-child{border-bottom:0}
-  .agdate{flex:0 0 46px;font-weight:800;font-size:16px;line-height:1.1}
-  .agdate .wd{display:block;color:var(--sub);font-weight:400;font-size:12px;margin-top:2px}
-  .agrow.we .agdate{color:#ef4444}
-  .agbody{flex:1;font-size:14px;line-height:1.45}
-  .agbody .t{color:var(--sub);font-weight:600;margin-top:3px}
-  .agnote{color:#b45309;font-style:italic;margin-top:2px}
-  .agempty{color:#9ca3af;padding:16px 4px;text-align:center}
   @media(max-width:640px){
     .wrap{padding:10px}
-    .cal{display:none}
-    .agenda{display:block}
+    /* 手機月曆精簡格：只留標籤＋時間，明細與備註點進去看 */
+    .cell{min-height:56px;padding:4px;font-size:11px}
+    .cell .items,.cell .note{display:none}
+    .cell .badge{position:static;display:inline-block;margin-top:2px;font-size:10px}
+    .cell .dnum{font-size:12px}
+    .cell .sess{margin-top:2px}
+    .cell .sess .t{font-size:10px;font-weight:600}
+    .cal{gap:3px}
+    /* 手機隱藏逐日清單表格（總數看上方額度卡） */
+    #listCard{display:none}
   }
   @media print{
     header,.tabs,.noprint{display:none!important}
@@ -109,23 +105,6 @@
     .cell{min-height:88px}
   }
 </style>
-<script>
-  // 錯誤攔截：把載入錯誤直接印在畫面上，方便診斷
-  window.addEventListener('error', function(e){
-    var box=document.getElementById('errbox')||document.createElement('pre');
-    box.id='errbox';
-    box.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;margin:0;padding:12px;background:#7f1d1d;color:#fff;font:12px/1.4 monospace;white-space:pre-wrap;z-index:9999';
-    box.textContent += 'JS錯誤：'+(e.message||'')+'\n  '+(e.filename||'')+':'+(e.lineno||'')+':'+(e.colno||'')+'\n';
-    if(!box.parentNode) document.documentElement.appendChild(box);
-  });
-  window.addEventListener('unhandledrejection', function(e){
-    var box=document.getElementById('errbox')||document.createElement('pre');
-    box.id='errbox';
-    box.style.cssText='position:fixed;left:0;right:0;bottom:0;max-height:45vh;overflow:auto;margin:0;padding:12px;background:#7f1d1d;color:#fff;font:12px/1.4 monospace;white-space:pre-wrap;z-index:9999';
-    box.textContent += 'Promise錯誤：'+((e.reason&&e.reason.message)||e.reason||'')+'\n';
-    if(!box.parentNode) document.documentElement.appendChild(box);
-  });
-</script>
 <script src="./supabase.js"></script>
 </head>
 <body>
@@ -196,7 +175,6 @@
 
   <div class="card">
     <div class="cal" id="cal"></div>
-    <div class="agenda" id="agenda"></div>
     <div class="row muted noprint" style="margin-top:10px">
       <span class="pill b-zs">中山</span><span class="pill b-ym">佑民</span>
       <span class="pill b-home">居服</span><span class="pill b-rs">喘息</span>
@@ -205,7 +183,7 @@
     </div>
   </div>
 
-  <div class="card">
+  <div class="card" id="listCard">
     <h3 style="margin:0 0 8px">逐日清單</h3>
     <div style="overflow-x:auto"><table id="listTbl"></table></div>
   </div>
@@ -259,6 +237,17 @@
     <div class="row" style="margin-top:16px">
       <button class="btn" onclick="dmSave()">儲存</button>
       <button class="btn ghost" onclick="closeMask('dayMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<!-- 唯讀詳情 modal（檢視模式用） -->
+<div class="mask" id="detailMask">
+  <div class="modal">
+    <h3 id="dtTitle">詳情</h3>
+    <div id="dtBody" style="margin-top:8px"></div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn ghost" onclick="closeMask('detailMask')">關閉</button>
     </div>
   </div>
 </div>
@@ -470,26 +459,6 @@ function renderCare(){
       `<div class="cell ${dow===0||dow===6?'we':''}" onclick="openDay('${dk}')">${inner}</div>`);
   }
 
-  // 手機清單(agenda)：只列有內容的日子
-  let ag='';
-  for(let d=1; d<=N; d++){
-    const dk=dkey(y,m,d), day=mm.days[dk], dow=new Date(y,m-1,d).getDay();
-    const hideOut = day.type==='out' && !cfg.showOut;
-    const has = day.sessions.length>0 || (day.type==='out' && !hideOut) || (day.note && day.type==='off');
-    if(!has) continue;
-    const meta=TYPES[day.type]||TYPES.off;
-    let body='';
-    if(day.type!=='off' && !hideOut) body+=`<span class="tag ${meta.cls}">${meta.label}</span>`;
-    if(day.type==='out'){
-      body+=` <span style="color:var(--out);font-weight:600">${day.note||'外出'}</span>`;
-    } else {
-      for(const s of day.sessions) body+=`<div class="t">${sessTimeRange(s)}　<span style="color:#111827;font-weight:400">${sessSummary(s)}</span></div>`;
-      if(day.note) body+=`<div class="agnote">${day.note}</div>`;
-    }
-    ag+=`<div class="agrow ${dow===0||dow===6?'we':''}" onclick="openDay('${dk}')"><div class="agdate">${d}<span class="wd">週${DOW_NAMES[dow]}</span></div><div class="agbody">${body}</div></div>`;
-  }
-  document.getElementById('agenda').innerHTML = ag || '<div class="agempty">本月尚無排班</div>';
-
   // 清單
   let rows='<thead><tr><th>日期</th><th>週</th><th>類型</th><th>時段</th>'+
     ITEMS.map(([,n])=>`<th>${n}</th>`).join('')+'<th>金額</th><th class="l">備註</th></tr></thead><tbody>';
@@ -532,9 +501,34 @@ function requireEdit(){
   if(readOnly){ alert('目前是「檢視模式」。請點右上角「登入以編輯」，用白名單 email 登入後才能修改。'); return false; }
   return true;
 }
+// 檢視模式：唯讀顯示某天詳情（不跳登入提示）
+function showDayDetail(dk){
+  const mm=getMonth(); const day=mm.days[dk];
+  const [y,m,d]=dk.split('-').map(Number);
+  const dow=new Date(y,m-1,d).getDay();
+  document.getElementById('dtTitle').textContent=`${m}月${d}日（週${DOW_NAMES[dow]}）`;
+  const meta=TYPES[day.type]||TYPES.off;
+  const hideOut = day.type==='out' && !cfg.showOut;
+  let html='';
+  if(day.type!=='off' && !hideOut) html+=`<span class="tag ${meta.cls}">${meta.label}</span>`;
+  if(day.type==='out' && !hideOut){
+    html+=`<div style="color:var(--out);font-weight:600;margin-top:6px">${day.note||'外出'}</div>`;
+  } else if(day.sessions.length){
+    html+='<div style="margin-top:8px">'+day.sessions.map(s=>
+      `<div style="padding:6px 0;border-bottom:1px solid var(--line)"><div style="color:var(--sub);font-weight:600">${sessTimeRange(s)}</div><div>${sessSummary(s)}${s.kind!=='respite'?'　$'+sessCost(s).toLocaleString():''}</div></div>`
+    ).join('')+'</div>';
+    if(day.note) html+=`<div class="agnote" style="color:#b45309;font-style:italic;margin-top:6px">${day.note}</div>`;
+  } else if(day.note){
+    html+=`<div style="margin-top:6px">${day.note}</div>`;
+  } else {
+    html+='<div class="muted" style="margin-top:6px">這天沒有排居服／喘息</div>';
+  }
+  document.getElementById('dtBody').innerHTML=html;
+  openMask('detailMask');
+}
 let editDK=null;
 function openDay(dk){
-  if(!requireEdit()) return;
+  if(readOnly){ showDayDetail(dk); return; }   // 檢視模式：看詳情，不提示登入
   editDK=dk;
   const mm=getMonth(); const day=mm.days[dk];
   const [y,m,d]=dk.split('-').map(Number);
