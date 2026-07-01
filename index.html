@@ -85,9 +85,22 @@
   .seg button.on{background:#111827;color:#fff}
   /* respite */
   .rlist{width:100%}
+  /* 手機清單(agenda) */
+  .agenda{display:none}
+  .tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;color:#fff}
+  .agrow{display:flex;gap:12px;padding:11px 4px;border-bottom:1px solid var(--line);cursor:pointer;align-items:flex-start}
+  .agrow:last-child{border-bottom:0}
+  .agdate{flex:0 0 46px;font-weight:800;font-size:16px;line-height:1.1}
+  .agdate .wd{display:block;color:var(--sub);font-weight:400;font-size:12px;margin-top:2px}
+  .agrow.we .agdate{color:#ef4444}
+  .agbody{flex:1;font-size:14px;line-height:1.45}
+  .agbody .t{color:var(--sub);font-weight:600;margin-top:3px}
+  .agnote{color:#b45309;font-style:italic;margin-top:2px}
+  .agempty{color:#9ca3af;padding:16px 4px;text-align:center}
   @media(max-width:640px){
-    .cell{min-height:74px;font-size:11px}
     .wrap{padding:10px}
+    .cal{display:none}
+    .agenda{display:block}
   }
   @media print{
     header,.tabs,.noprint{display:none!important}
@@ -183,6 +196,7 @@
 
   <div class="card">
     <div class="cal" id="cal"></div>
+    <div class="agenda" id="agenda"></div>
     <div class="row muted noprint" style="margin-top:10px">
       <span class="pill b-zs">中山</span><span class="pill b-ym">佑民</span>
       <span class="pill b-home">居服</span><span class="pill b-rs">喘息</span>
@@ -455,6 +469,26 @@ function renderCare(){
     cal.insertAdjacentHTML('beforeend',
       `<div class="cell ${dow===0||dow===6?'we':''}" onclick="openDay('${dk}')">${inner}</div>`);
   }
+
+  // 手機清單(agenda)：只列有內容的日子
+  let ag='';
+  for(let d=1; d<=N; d++){
+    const dk=dkey(y,m,d), day=mm.days[dk], dow=new Date(y,m-1,d).getDay();
+    const hideOut = day.type==='out' && !cfg.showOut;
+    const has = day.sessions.length>0 || (day.type==='out' && !hideOut) || (day.note && day.type==='off');
+    if(!has) continue;
+    const meta=TYPES[day.type]||TYPES.off;
+    let body='';
+    if(day.type!=='off' && !hideOut) body+=`<span class="tag ${meta.cls}">${meta.label}</span>`;
+    if(day.type==='out'){
+      body+=` <span style="color:var(--out);font-weight:600">${day.note||'外出'}</span>`;
+    } else {
+      for(const s of day.sessions) body+=`<div class="t">${sessTimeRange(s)}　<span style="color:#111827;font-weight:400">${sessSummary(s)}</span></div>`;
+      if(day.note) body+=`<div class="agnote">${day.note}</div>`;
+    }
+    ag+=`<div class="agrow ${dow===0||dow===6?'we':''}" onclick="openDay('${dk}')"><div class="agdate">${d}<span class="wd">週${DOW_NAMES[dow]}</span></div><div class="agbody">${body}</div></div>`;
+  }
+  document.getElementById('agenda').innerHTML = ag || '<div class="agempty">本月尚無排班</div>';
 
   // 清單
   let rows='<thead><tr><th>日期</th><th>週</th><th>類型</th><th>時段</th>'+
