@@ -262,6 +262,12 @@ const TYPES = {
 };
 const DOW_NAMES = ['日','一','二','三','四','五','六'];
 
+// 雲端變數（需在任何 save()/cloudSave() 呼叫之前宣告，避免初始化順序錯誤）
+const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
+const SUPA_KEY='sb_publishable_Fvn4olj6jWuxbRU3Sqfyqw_S8XPefdj';
+const CLOUD = location.protocol.startsWith('http');   // file:// 打開＝純本機模式
+let sb=null, authEmail=null, pushTimer=null, cloudReady=false;
+
 // 舊資料：time 字串 → start 開始時間
 const startFromTime = t => (t && t.includes('-')) ? t.split('-')[0].trim() : (t||'');
 // 設定格式遷移（可重複執行、安全）
@@ -684,11 +690,6 @@ function importData(file){
 }
 
 /* ===================== 雲端協作 (Supabase) ===================== */
-const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
-const SUPA_KEY='sb_publishable_Fvn4olj6jWuxbRU3Sqfyqw_S8XPefdj';
-const CLOUD = location.protocol.startsWith('http');   // file:// 打開＝純本機模式
-let sb=null, authEmail=null, pushTimer=null, cloudReady=false;
-
 function setCloudData(doc){
   cfg = Object.assign(structuredClone(DEFAULTS), doc.cfg||{});
   migrateCfg();
