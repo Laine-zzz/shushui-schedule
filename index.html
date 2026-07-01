@@ -283,7 +283,7 @@ const DOW_NAMES = ['日','一','二','三','四','五','六'];
 const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
 const SUPA_KEY='sb_publishable_Fvn4olj6jWuxbRU3Sqfyqw_S8XPefdj';
 const CLOUD = location.protocol.startsWith('http');   // file:// 打開＝純本機模式
-let sb=null, authEmail=null, pushTimer=null, cloudReady=false;
+let sb=null, authEmail=null, pushTimer=null, cloudReady=false, authStarted=false, rtSubscribed=false;
 
 // 舊資料：time 字串 → start 開始時間
 const startFromTime = t => (t && t.includes('-')) ? t.split('-')[0].trim() : (t||'');
@@ -745,6 +745,8 @@ function showApp(){
   document.getElementById('acctEmail').textContent=authEmail;
 }
 async function afterLogin(session){
+  if(authStarted) return;      // 避免 getSession 與 onAuthStateChange 重複觸發
+  authStarted=true;
   authEmail = session.user.email;
   // 嘗試讀取（非白名單會被 RLS 擋，讀不到）
   const { data, error } = await sb.from('schedule').select('data').eq('id','main').maybeSingle();
@@ -764,6 +766,7 @@ async function afterLogin(session){
   showApp(); renderCare(); subscribeRealtime();
 }
 function subscribeRealtime(){
+  if(rtSubscribed) return; rtSubscribed=true;
   sb.channel('schedule-live')
     .on('postgres_changes',{event:'UPDATE',schema:'public',table:'schedule',filter:'id=eq.main'}, payload=>{
       if(payload.new.updated_by===authEmail) return;   // 忽略自己造成的更新
@@ -780,7 +783,7 @@ async function boot(){
   }
   try{
     sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-    sb.auth.onAuthStateChange((_ev, session)=>{ if(session && !cloudReady) afterLogin(session); });
+    sb.auth.onAuthStateChange((_ev, session)=>{ if(session && !authStarted) afterLogin(session); });
     const { data:{ session } } = await sb.auth.getSession();
     if(session) afterLogin(session);
   }catch(e){
