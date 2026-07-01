@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>阿水居服 / 喘息 排定工具</title>
+<style>
+  :root{
+    --zs:#3b82f6; --ym:#22c55e; --home:#f59e0b; --off:#9ca3af; --rs:#a855f7; --out:#0d9488;
+    --bg:#f7f7f8; --card:#fff; --line:#e5e7eb; --ink:#1f2937; --sub:#6b7280;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,"PingFang TC","Microsoft JhengHei",system-ui,sans-serif;
+    background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5}
+  header{background:#111827;color:#fff;padding:12px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:700}
+  .tabs{display:flex;gap:6px;margin-left:auto}
+  .tab{background:#374151;color:#e5e7eb;border:0;padding:7px 14px;border-radius:8px;cursor:pointer;font-size:14px}
+  .tab.active{background:#fff;color:#111827;font-weight:700}
+  .wrap{max-width:1080px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:16px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  button.btn{background:#111827;color:#fff;border:0;padding:8px 14px;border-radius:8px;cursor:pointer;font-size:14px}
+  button.btn.ghost{background:#eef0f3;color:#111827}
+  button.btn.small{padding:5px 10px;font-size:13px}
+  .nav{font-size:20px;font-weight:800;min-width:150px;text-align:center}
+  .muted{color:var(--sub);font-size:13px}
+  /* budget bar */
+  .bar{height:14px;background:#eef0f3;border-radius:8px;overflow:hidden;margin:8px 0}
+  .bar > div{height:100%;background:linear-gradient(90deg,#22c55e,#3b82f6);transition:width .2s}
+  .bar.over > div{background:#ef4444}
+  .stats{display:flex;gap:18px;flex-wrap:wrap;font-size:14px}
+  .stats b{font-size:18px}
+  .pill{display:inline-block;padding:1px 8px;border-radius:999px;font-size:12px;color:#fff}
+  /* calendar */
+  .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+  .dow{text-align:center;font-weight:700;color:var(--sub);font-size:13px;padding:4px 0}
+  .cell{background:#fff;border:1px solid var(--line);border-radius:10px;min-height:96px;padding:6px;cursor:pointer;position:relative;font-size:12px}
+  .cell:hover{border-color:#9ca3af}
+  .cell.pad{background:transparent;border:0;cursor:default}
+  .cell .dnum{font-weight:700;font-size:13px}
+  .cell.we .dnum{color:#ef4444}
+  .cell .badge{position:absolute;top:6px;right:6px;font-size:10px;padding:1px 6px;border-radius:6px;color:#fff}
+  .b-zs{background:var(--zs)} .b-ym{background:var(--ym)} .b-home{background:var(--home)} .b-off{background:var(--off)} .b-rs{background:var(--rs)} .b-out{background:var(--out)}
+  .budgets{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .budgets .card{margin-bottom:0}
+  .btitle{font-weight:700;margin-bottom:6px}
+  .bar.rbar > div{background:linear-gradient(90deg,#a855f7,#7c3aed)}
+  @media(max-width:640px){ .budgets{grid-template-columns:1fr} }
+  .sess{margin-top:4px;color:#374151;line-height:1.35}
+  .sess .t{color:var(--sub);font-weight:600}
+  .sess .items{color:#111827}
+  .note{margin-top:3px;color:#b45309;font-style:italic}
+  .lock{position:absolute;bottom:4px;right:6px;font-size:11px;color:var(--sub)}
+  /* list table */
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border:1px solid var(--line);padding:5px 8px;text-align:center}
+  th{background:#f3f4f6}
+  td.l{text-align:left}
+  tfoot td{font-weight:700;background:#f9fafb}
+  /* modal */
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+  .mask.show{display:flex}
+  .modal{background:#fff;border-radius:14px;max-width:460px;width:100%;max-height:90vh;overflow:auto;padding:18px}
+  .modal h3{margin:0 0 4px}
+  label.fld{display:block;margin:10px 0 3px;font-size:13px;color:var(--sub)}
+  input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;width:100%}
+  .grid4{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:6px}
+  .grid4 .h{font-size:11px;color:var(--sub);text-align:center}
+  .sessrow{border:1px solid var(--line);border-radius:10px;padding:8px;margin:8px 0}
+  .sessrow .top{display:flex;gap:6px;align-items:center;margin-bottom:6px}
+  .sessrow input.start{width:auto;flex:0 0 118px}
+  .sessrow .endbox{color:var(--sub);font-size:13px;flex:1}
+  .sessrow .end{color:#111827}
+  .tinybtn{background:#fee2e2;color:#b91c1c;border:0;border-radius:6px;padding:4px 8px;cursor:pointer;font-size:12px}
+  .chk{display:flex;align-items:center;gap:6px;margin-top:10px}
+  .chk input{width:auto}
+  .acct{display:flex;align-items:center;gap:8px}
+  .gate{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:20px;z-index:100}
+  .gatebox{background:#fff;border:1px solid var(--line);border-radius:14px;padding:26px;max-width:380px;width:100%}
+  .gatebox h2{margin:0 0 8px;font-size:19px}
+  .gatebox input{width:100%;margin-top:4px}
+  .seg{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+  .seg button{border:0;background:#fff;padding:7px 10px;cursor:pointer;font-size:13px;flex:1}
+  .seg button.on{background:#111827;color:#fff}
+  /* respite */
+  .rlist{width:100%}
+  @media(max-width:640px){
+    .cell{min-height:74px;font-size:11px}
+    .wrap{padding:10px}
+  }
+  @media print{
+    header,.tabs,.noprint{display:none!important}
+    body{background:#fff}
+    .card{border:0;padding:0;margin:0 0 12px}
+    .cell{min-height:88px}
+  }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+<header>
+  <h1>阿水 · 居服／喘息排定</h1>
+  <div class="tabs">
+    <button class="tab active" data-tab="care" onclick="switchTab('care')">行事曆</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">設定</button>
+  </div>
+  <div id="acct" class="acct noprint" style="display:none">
+    <span id="acctEmail" class="muted"></span>
+    <button class="tab" onclick="signOut()">登出</button>
+  </div>
+</header>
+
+<!-- 登入畫面 -->
+<div id="loginGate" class="gate" style="display:none">
+  <div class="gatebox">
+    <h2>阿水 · 居服／喘息排定</h2>
+    <p class="muted" id="loginMsg">請用你的 email 登入（限家人白名單）。系統會寄一封含登入連結的信到你的信箱。</p>
+    <input id="loginEmail" type="email" placeholder="你的 email" autocomplete="email">
+    <button class="btn" id="loginBtn" onclick="sendLink()" style="width:100%;margin-top:10px">寄送登入連結</button>
+    <p class="muted" id="loginHint" style="margin-top:10px"></p>
+  </div>
+</div>
+
+<div class="wrap" id="appWrap" style="display:none">
+
+<!-- ============ 居服 ============ -->
+<section id="tab-care">
+  <div class="card noprint">
+    <div class="row">
+      <button class="btn ghost small" onclick="stepMonth(-1)">‹ 上月</button>
+      <div class="nav" id="monthLabel">—</div>
+      <button class="btn ghost small" onclick="stepMonth(1)">下月 ›</button>
+      <span class="muted" id="workdays"></span>
+      <div style="margin-left:auto" class="row">
+        <button class="btn ghost small" onclick="regenMonth()">套用每週固定安排</button>
+        <button class="btn ghost small" onclick="window.print()">列印</button>
+        <button class="btn ghost small" onclick="exportCsv()">匯出CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="budgets">
+    <div class="card">
+      <div class="btitle">居服（本月）</div>
+      <div class="stats">
+        <div>上限 <b id="capNum">—</b></div>
+        <div>已排 <b id="usedNum" style="color:#2563eb">—</b></div>
+        <div>剩餘 <b id="leftNum" style="color:#16a34a">—</b></div>
+      </div>
+      <div class="bar" id="bar"><div style="width:0%"></div></div>
+      <div class="stats muted" id="itemBreak"></div>
+    </div>
+    <div class="card">
+      <div class="btitle">喘息（<span id="ryLbl">—</span>）</div>
+      <div class="stats">
+        <div>上限 <b id="rCap2">63</b> 組</div>
+        <div>已排 <b id="rUsed2" style="color:#7c3aed">—</b> 組</div>
+        <div>剩餘 <b id="rLeft2" style="color:#16a34a">—</b> 組</div>
+        <div>= <b id="rHours2">—</b> 時</div>
+      </div>
+      <div class="bar rbar" id="rBar"><div style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="cal" id="cal"></div>
+    <div class="row muted noprint" style="margin-top:10px">
+      <span class="pill b-zs">中山</span><span class="pill b-ym">佑民</span>
+      <span class="pill b-home">居服</span><span class="pill b-rs">喘息</span>
+      <span class="pill b-out">外出</span><span class="pill b-off">留空</span>
+      <span>· 點任一天可編輯：中山/佑民/居服/喘息/外出</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 8px">逐日清單</h3>
+    <div style="overflow-x:auto"><table id="listTbl"></table></div>
+  </div>
+</section>
+
+<!-- ============ 設定 ============ -->
+<section id="tab-settings" style="display:none">
+  <div class="card">
+    <h3 style="margin-top:0">參數設定</h3>
+    <p class="muted">改完按「儲存設定」。復健模板與單價都可依實際核定調整。</p>
+    <div id="settingsForm"></div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn" onclick="saveSettings()">儲存設定</button>
+      <button class="btn ghost" onclick="resetSettings()">還原預設</button>
+    </div>
+    <hr style="margin:16px 0;border:0;border-top:1px solid var(--line)">
+    <b>資料備份 / 搬移</b>
+    <p class="muted" style="margin:4px 0">把目前資料存成一個檔（備份），或把備份檔匯入（例如從本機搬到雲端版）。匯入會覆蓋目前全部資料。</p>
+    <div class="row">
+      <button class="btn ghost small" onclick="exportData()">匯出備份檔</button>
+      <button class="btn ghost small" onclick="document.getElementById('importFile').click()">匯入備份檔</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none" onchange="importData(this.files[0])">
+    </div>
+  </div>
+</section>
+
+</div>
+
+<!-- 日編輯 modal -->
+<div class="mask" id="dayMask">
+  <div class="modal">
+    <h3 id="dmTitle">編輯</h3>
+    <div class="muted" id="dmSub"></div>
+
+    <label class="fld">當日類型</label>
+    <div class="seg" id="dmType">
+      <button data-t="zhongshan">中山</button>
+      <button data-t="youmin">佑民</button>
+      <button data-t="home">居服</button>
+      <button data-t="respite">喘息</button>
+      <button data-t="out">外出</button>
+      <button data-t="off">停診</button>
+    </div>
+
+    <div id="dmSessions"></div>
+    <button class="btn ghost small" style="margin-top:8px" id="dmAddBtn" onclick="dmAddSession()">＋ 新增時段</button>
+
+    <label class="fld">備註（如：榮總、黎明物理治療、連假）</label>
+    <input id="dmNote" placeholder="">
+
+    <div class="row" style="margin-top:16px">
+      <button class="btn" onclick="dmSave()">儲存</button>
+      <button class="btn ghost" onclick="closeMask('dayMask')">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ===================== 常數與設定 ===================== */
+const DEFAULTS = {
+  monthlyCap: 32090,
+  prices: { outing:195, care:195, feed:130, accompany:175 },
+  accompanyDailyMax: 2,
+  templates: {
+    zhongshan: { name:'中山', start:'12:00', outing:7, care:1, feed:1, accompany:0 },
+    youmin:    { name:'佑民', start:'12:00', outing:5, care:1, feed:1, accompany:0 }
+  },
+  // 每週固定安排：0=日 ... 6=六。type: zhongshan/youmin/out(外出不排)/fill(開放自動補洞)
+  weekly: {
+    1:{type:'zhongshan'}, 2:{type:'youmin'}, 3:{type:'zhongshan'},
+    4:{type:'out', label:'黎明物理治療'}, 5:{type:'zhongshan'},
+    6:{type:'fill'}, 0:{type:'fill'}
+  },
+  homePM: { start:'14:00', outing:0, care:1, feed:1, accompany:1 },
+  respiteCap: 63,
+  hoursPerGroup: 2,
+  showOut: true   // 行事曆是否顯示外出日
+};
+const ITEMS = [
+  ['outing','陪同外出'],['care','基本照顧'],['feed','餵食'],['accompany','陪伴服務']
+];
+const TYPES = {
+  zhongshan:{label:'中山',cls:'b-zs'}, youmin:{label:'佑民',cls:'b-ym'},
+  home:{label:'居服',cls:'b-home'}, respite:{label:'喘息',cls:'b-rs'},
+  out:{label:'外出',cls:'b-out'}, off:{label:'',cls:'b-off'}
+};
+const DOW_NAMES = ['日','一','二','三','四','五','六'];
+
+// 舊資料：time 字串 → start 開始時間
+const startFromTime = t => (t && t.includes('-')) ? t.split('-')[0].trim() : (t||'');
+// 設定格式遷移（可重複執行、安全）
+function migrateCfg(){
+  if(!cfg.weekly) cfg.weekly = structuredClone(DEFAULTS.weekly);
+  if(cfg.showOut===undefined) cfg.showOut = true;
+  if(!cfg.templates) cfg.templates = structuredClone(DEFAULTS.templates);
+  if(!cfg.homePM) cfg.homePM = structuredClone(DEFAULTS.homePM);
+  ['zhongshan','youmin'].forEach(k=>{ const t=cfg.templates[k]; if(t && !t.start) t.start=startFromTime(t.time)||'12:00'; });
+  if(cfg.homePM && !cfg.homePM.start) cfg.homePM.start=startFromTime(cfg.homePM.time)||'14:00';
+}
+let cfg = load('cfg', DEFAULTS);
+migrateCfg();
+let store = load('care', {});
+// 一次性遷移：舊資料沒有 manual 標記，把明顯是手動排的日子(居服/喘息/有備註的空白日)標為手動，避免被自動同步蓋掉
+if(!localStorage.getItem('ashui_migrated_v2')){
+  for(const k in store) for(const dk in (store[k].days||{})){
+    const d=store[k].days[dk];
+    if(d.type==='home' || d.type==='respite' || (d.note && d.note.trim() && d.type==='off')) d.manual=true;
+  }
+  save('care',store); localStorage.setItem('ashui_migrated_v2','1');
+}      // { 'YYYY-MM': { days:{ 'YYYY-MM-DD':{type,sessions,note,locked} } } }
+
+let cur = (()=>{ const d=new Date(); return {y:d.getFullYear(), m:d.getMonth()+1}; })();
+
+/* ===================== 工具 ===================== */
+function load(k,def){ try{ const v=JSON.parse(localStorage.getItem('ashui_'+k)); return v??structuredClone(def);}catch(e){return structuredClone(def);} }
+function save(k,v){ localStorage.setItem('ashui_'+k, JSON.stringify(v)); cloudSave(); }
+function roc(y){ return y-1911; }
+function pad(n){ return String(n).padStart(2,'0'); }
+function key(y,m){ return y+'-'+pad(m); }
+function dkey(y,m,d){ return y+'-'+pad(m)+'-'+pad(d); }
+function daysInMonth(y,m){ return new Date(y,m,0).getDate(); }
+function sessCost(s){ if(s.kind==='respite') return 0; let c=0; for(const [k] of ITEMS) c += (s[k]||0)*cfg.prices[k]; return c; }
+// 時間：每組居服=30分；喘息每組=hoursPerGroup 小時。結束時間依組數自動算
+function parseHM(t){ const m=/(\d{1,2}):(\d{2})/.exec(t||''); return m? (+m[1])*60+(+m[2]) : 12*60; }
+function fmtHM(mins){ mins=((mins%1440)+1440)%1440; return pad(Math.floor(mins/60))+':'+pad(mins%60); }
+function sessStart(s){ return s.start || (s.time? s.time.split('-')[0].trim() : '12:00'); }
+function sessDurMin(s){ return s.kind==='respite' ? (s.groups||0)*cfg.hoursPerGroup*60
+  : ((s.outing||0)+(s.care||0)+(s.feed||0)+(s.accompany||0))*30; }
+function sessTimeRange(s){ const st=sessStart(s); return st+'-'+fmtHM(parseHM(st)+sessDurMin(s)); }
+function sessSummary(s){
+  if(s.kind==='respite'){ const g=s.groups||0; return '喘息 '+g+'組／'+(g*cfg.hoursPerGroup)+'時'; }
+  return ITEMS.filter(([k])=> (s[k]||0)>0).map(([k,n])=> n+'×'+s[k]).join('、');
+}
+function isRespite(day){ return day.type==='respite'; }
+function respiteUsedYear(gy){
+  let t=0;
+  for(const k in store){ if(!k.startsWith(gy+'-')) continue;
+    for(const dk in store[k].days) for(const s of store[k].days[dk].sessions) if(s.kind==='respite') t+=(s.groups||0);
+  }
+  return t;
+}
+
+/* ===================== 月份資料 ===================== */
+function getMonth(){
+  const k=key(cur.y,cur.m);
+  if(!store[k]){ store[k]={days:{}}; genDefault(k); }
+  syncWeekly(store[k],k);   // 未手動改過的日子自動跟著「每週固定安排」更新
+  return store[k];
+}
+function templateSession(tpl){
+  return { start:tpl.start||'12:00', outing:tpl.outing||0, care:tpl.care||0, feed:tpl.feed||0, accompany:tpl.accompany||0, kind:'rehab' };
+}
+function homeSession(){
+  const t=cfg.homePM;
+  return { start:t.start||'14:00', outing:t.outing||0, care:t.care||0, feed:t.feed||0, accompany:t.accompany||0, kind:'home' };
+}
+// 依「每週固定安排」算出某天的預設內容
+function defaultDay(y,m,d){
+  const dow=new Date(y,m-1,d).getDay();
+  const w=cfg.weekly[dow]||{type:'fill'};
+  if(w.type==='zhongshan') return { type:'zhongshan', sessions:[templateSession(cfg.templates.zhongshan)], note:'' };
+  if(w.type==='youmin')    return { type:'youmin',    sessions:[templateSession(cfg.templates.youmin)],    note:'' };
+  if(w.type==='home')      return { type:'home', sessions:[homeSession()], note:'' };
+  if(w.type==='out')       return { type:'out', sessions:[], note:w.label||'外出' };
+  return { type:'off', sessions:[], note:'' };   // fill＝留空
+}
+function genDefault(k){
+  const [y,m]=k.split('-').map(Number);
+  const mm=store[k]; mm.days={};
+  const N=daysInMonth(y,m);
+  for(let d=1; d<=N; d++){
+    mm.days[dkey(y,m,d)]={ ...defaultDay(y,m,d), manual:false };
+  }
+  save('care',store);
+}
+// 只更新「未手動改過(manual)」的日子，手動調整(居服/喘息/榮總等)一律保留
+function syncWeekly(mm,k){
+  const [y,m]=k.split('-').map(Number);
+  let changed=false;
+  for(let d=1; d<=daysInMonth(y,m); d++){
+    const dk=dkey(y,m,d), day=mm.days[dk];
+    if(day && day.manual) continue;                    // 手動改過 → 不動
+    const def=defaultDay(y,m,d);
+    if(!day || day.type!==def.type || day.note!==def.note || JSON.stringify(day.sessions)!==JSON.stringify(def.sessions)){
+      mm.days[dk]={ ...def, manual:false }; changed=true;
+    }
+  }
+  if(changed) save('care',store);
+}
+function regenMonth(){
+  if(!confirm('整月重排：清除本月所有手動調整、完全依「每週固定安排」重排，確定？')) return;
+  const k=key(cur.y,cur.m); genDefault(k); renderCare();
+}
+
+/* ===================== 統計 ===================== */
+function isRehab(day){ return day.type==='zhongshan'||day.type==='youmin'; }
+function monthUsed(mm){ let t=0; for(const dk in mm.days) for(const s of mm.days[dk].sessions) t+=sessCost(s); return t; }
+
+/* ===================== 渲染：居服 ===================== */
+function renderCare(){
+  const mm=getMonth();
+  const [y,m]=[cur.y,cur.m];
+  document.getElementById('monthLabel').textContent = '民國'+roc(y)+'年 '+m+'月';
+  const N=daysInMonth(y,m);
+  document.getElementById('workdays').textContent = '（共 '+N+' 天）';
+
+  // 居服統計
+  const cap=cfg.monthlyCap, used=monthUsed(mm), left=cap-used;
+  document.getElementById('capNum').textContent=cap.toLocaleString();
+  document.getElementById('usedNum').textContent=used.toLocaleString();
+  const leftEl=document.getElementById('leftNum');
+  leftEl.textContent=left.toLocaleString();
+  leftEl.style.color = left<0? '#dc2626' : '#16a34a';
+  const bar=document.getElementById('bar');
+  bar.classList.toggle('over', used>cap);
+  bar.firstElementChild.style.width=Math.min(100, used/cap*100)+'%';
+  // 喘息統計（本年，依西元＝民國）
+  document.getElementById('ryLbl').textContent='民國'+roc(y)+'年';
+  const rUsed=respiteUsedYear(y), rCap=cfg.respiteCap, rLeft=rCap-rUsed;
+  document.getElementById('rCap2').textContent=rCap;
+  document.getElementById('rUsed2').textContent=rUsed;
+  const rl=document.getElementById('rLeft2'); rl.textContent=rLeft; rl.style.color=rLeft<0?'#dc2626':'#16a34a';
+  document.getElementById('rHours2').textContent=rUsed*cfg.hoursPerGroup;
+  const rbar=document.getElementById('rBar'); rbar.classList.toggle('over',rUsed>rCap);
+  rbar.firstElementChild.style.width=Math.min(100, rUsed/rCap*100)+'%';
+  // 各項目小計
+  const tot={outing:0,care:0,feed:0,accompany:0};
+  for(const dk in mm.days) for(const s of mm.days[dk].sessions) for(const[k] of ITEMS) tot[k]+=(s[k]||0);
+  document.getElementById('itemBreak').innerHTML = ITEMS.map(([k,n])=>
+    `${n} <b>${tot[k]}</b> 組`).join(' ｜ ');
+
+  // 月曆
+  const cal=document.getElementById('cal'); cal.innerHTML='';
+  DOW_NAMES.forEach(n=> cal.insertAdjacentHTML('beforeend',`<div class="dow">${n}</div>`));
+  const first=new Date(y,m-1,1).getDay();
+  for(let i=0;i<first;i++) cal.insertAdjacentHTML('beforeend','<div class="cell pad"></div>');
+  for(let d=1; d<=N; d++){
+    const dk=dkey(y,m,d), day=mm.days[dk], dow=new Date(y,m-1,d).getDay();
+    const meta=TYPES[day.type]||TYPES.off;
+    const hideOut = day.type==='out' && !cfg.showOut;   // 外出日且關閉顯示 → 當空白
+    let inner=`<div class="dnum">${d}</div>`;
+    if(day.type!=='off' && !hideOut) inner+=`<div class="badge ${meta.cls}">${meta.label}</div>`;
+    if(hideOut){
+      /* 不顯示外出內容 */
+    } else if(day.type==='out'){
+      inner+=`<div class="sess"><div class="items" style="color:var(--out);font-weight:600">${day.note||'外出'}</div></div>`;
+    } else {
+      for(const s of day.sessions){
+        inner+=`<div class="sess"><div class="t">${sessTimeRange(s)}</div><div class="items">${sessSummary(s)}</div></div>`;
+      }
+      if(day.note) inner+=`<div class="note">${day.note}</div>`;
+    }
+    cal.insertAdjacentHTML('beforeend',
+      `<div class="cell ${dow===0||dow===6?'we':''}" onclick="openDay('${dk}')">${inner}</div>`);
+  }
+
+  // 清單
+  let rows='<thead><tr><th>日期</th><th>週</th><th>類型</th><th>時段</th>'+
+    ITEMS.map(([,n])=>`<th>${n}</th>`).join('')+'<th>金額</th><th class="l">備註</th></tr></thead><tbody>';
+  const foot={outing:0,care:0,feed:0,accompany:0}; let footCost=0;
+  for(let d=1; d<=N; d++){
+    const dk=dkey(y,m,d), day=mm.days[dk], dow=new Date(y,m-1,d).getDay();
+    if(day.sessions.length===0) continue;   // 沒排居服/喘息的日子不顯示
+    day.sessions.forEach((s,i)=>{
+      const c=sessCost(s); footCost+=c;
+      for(const[k] of ITEMS) foot[k]+=(s[k]||0);
+      const tName=(TYPES[day.type]||TYPES.off).label||'—';
+      let itemCells, moneyCell;
+      if(s.kind==='respite'){
+        itemCells=ITEMS.map(()=>'<td></td>').join('');
+        moneyCell=`喘息 ${s.groups||0}組`;
+      } else {
+        itemCells=ITEMS.map(([k])=>`<td>${s[k]||''}</td>`).join('');
+        moneyCell=c.toLocaleString();
+      }
+      rows+=`<tr><td>${i===0?m+'/'+d:''}</td><td>${i===0?DOW_NAMES[dow]:''}</td>`+
+        `<td>${i===0?tName:''}</td><td>${sessTimeRange(s)}</td>`+
+        itemCells+
+        `<td>${moneyCell}</td><td class="l">${i===0?(day.note||''):''}</td></tr>`;
+    });
+  }
+  rows+='</tbody><tfoot><tr><td colspan="4">合計</td>'+
+    ITEMS.map(([k])=>`<td>${foot[k]}</td>`).join('')+
+    `<td>${footCost.toLocaleString()}</td><td></td></tr></tfoot>`;
+  document.getElementById('listTbl').innerHTML=rows;
+}
+
+function stepMonth(dir){
+  cur.m+=dir;
+  if(cur.m>12){cur.m=1;cur.y++;} if(cur.m<1){cur.m=12;cur.y--;}
+  renderCare();
+}
+
+/* ===================== 日編輯 ===================== */
+let editDK=null;
+function openDay(dk){
+  editDK=dk;
+  const mm=getMonth(); const day=mm.days[dk];
+  const [y,m,d]=dk.split('-').map(Number);
+  const dow=new Date(y,m-1,d).getDay();
+  document.getElementById('dmTitle').textContent=`${m}月${d}日（週${DOW_NAMES[dow]}）`;
+  document.getElementById('dmSub').textContent='選類型會套用預設；也可自行加減時段與組數';
+  setType(day.type,false);
+  dmRenderSessions(day.sessions);
+  document.getElementById('dmNote').value=day.note||'';
+  openMask('dayMask');
+}
+function setType(t, apply=true){
+  document.querySelectorAll('#dmType button').forEach(b=> b.classList.toggle('on', b.dataset.t===t));
+  document.getElementById('dmAddBtn').style.display = (t==='respite')?'none':'';
+  if(!apply) return;
+  let sess=[];
+  if(t==='zhongshan') sess=[templateSession(cfg.templates.zhongshan)];
+  else if(t==='youmin') sess=[templateSession(cfg.templates.youmin)];
+  else if(t==='home') sess=[{...cfg.homePM,kind:'home',slot:'PM'}];
+  else if(t==='respite') sess=[{start:'12:00',kind:'respite',groups:2}];
+  else sess=[];   // out / off 無服務時段
+  dmRenderSessions(sess);
+}
+document.querySelectorAll('#dmType button').forEach(b=> b.onclick=()=>setType(b.dataset.t,true));
+
+function dmRenderSessions(sessions){
+  const box=document.getElementById('dmSessions'); box.innerHTML='';
+  sessions.forEach((s,idx)=> box.insertAdjacentHTML('beforeend', sessRowHtml(s,idx)));
+  recalcEnds();
+}
+function timeTopHtml(s){
+  return `<div class="top">
+      <span class="h">開始</span>
+      <input class="start" type="time" value="${sessStart(s)}" oninput="recalcEnds()">
+      <span class="endbox">→ 結束 <b class="end">--:--</b></span>
+      <button class="tinybtn" onclick="this.closest('.sessrow').remove();recalcEnds()">刪</button>
+    </div>`;
+}
+function sessRowHtml(s,idx){
+  if(s.kind==='respite'){
+    return `<div class="sessrow" data-i="${idx}" data-kind="respite">
+      ${timeTopHtml(s)}
+      <div class="h" style="text-align:left">喘息組數（1 組＝${cfg.hoursPerGroup} 小時）</div>
+      <input type="number" min="0" step="1" data-groups value="${s.groups||0}" oninput="recalcEnds()">
+    </div>`;
+  }
+  return `<div class="sessrow" data-i="${idx}">
+    ${timeTopHtml(s)}
+    <div class="grid4">
+      ${ITEMS.map(([k,n])=>`<div><div class="h">${n}</div>
+        <input type="number" min="0" step="1" data-k="${k}" value="${s[k]||0}" oninput="recalcEnds()"></div>`).join('')}
+    </div></div>`;
+}
+// 依開始時間＋組數(居服每組30分/喘息每組hoursPerGroup時) 即時算結束時間
+function recalcEnds(){
+  document.querySelectorAll('#dmSessions .sessrow').forEach(row=>{
+    const start=row.querySelector('.start').value;
+    let dur;
+    if(row.dataset.kind==='respite') dur=(+row.querySelector('input[data-groups]').value||0)*cfg.hoursPerGroup*60;
+    else { let g=0; row.querySelectorAll('input[data-k]').forEach(inp=> g+=(+inp.value||0)); dur=g*30; }
+    row.querySelector('.end').textContent=fmtHM(parseHM(start)+dur);
+  });
+}
+function dmAddSession(){
+  document.getElementById('dmSessions').insertAdjacentHTML('beforeend',
+    sessRowHtml({start:'14:00',outing:0,care:0,feed:0,accompany:0}, Date.now()));
+  recalcEnds();
+}
+function dmSave(){
+  const mm=getMonth(); const day=mm.days[editDK];
+  const t=[...document.querySelectorAll('#dmType button')].find(b=>b.classList.contains('on'))?.dataset.t||'off';
+  const sessions=[];
+  document.querySelectorAll('#dmSessions .sessrow').forEach(row=>{
+    if(row.dataset.kind==='respite'){
+      const g=+row.querySelector('input[data-groups]').value||0;
+      if(g>0) sessions.push({start:row.querySelector('.start').value, kind:'respite', groups:g});
+      return;
+    }
+    const s={start:row.querySelector('.start').value};
+    row.querySelectorAll('input[data-k]').forEach(inp=> s[inp.dataset.k]= (+inp.value||0));
+    if(ITEMS.some(([k])=>(s[k]||0)>0)) sessions.push(s);
+  });
+  // 決定當日類型
+  let type;
+  if(t==='out') type='out';            // 外出（不排居服），可無時段
+  else if(sessions.length===0) type='off';
+  else if(t==='respite') type='respite';
+  else if(t==='off') type='home';      // 標了停診卻有內容 → 視為家訪
+  else type=t;
+  day.type=type; day.sessions=sessions;
+  day.note=document.getElementById('dmNote').value.trim();
+  day.manual=true;   // 手動改過 → 自動同步不會覆蓋
+  save('care',store); closeMask('dayMask'); renderCare();
+}
+
+/* ===================== CSV ===================== */
+function exportCsv(){
+  const mm=getMonth(); const [y,m]=[cur.y,cur.m];
+  let csv='日期,週,類型,時段,'+ITEMS.map(([,n])=>n).join(',')+',金額,喘息組數,備註\n';
+  for(let d=1; d<=daysInMonth(y,m); d++){
+    const dk=dkey(y,m,d), day=mm.days[dk], dow=new Date(y,m-1,d).getDay();
+    const tName=(TYPES[day.type]||TYPES.off).label;
+    if(day.sessions.length===0){ if(day.note) csv+=`${m}/${d},${DOW_NAMES[dow]},,,,,,,,"${day.note}"\n`; continue; }
+    day.sessions.forEach(s=>{
+      const isR=s.kind==='respite';
+      csv+=`${m}/${d},${DOW_NAMES[dow]},${tName},${sessTimeRange(s)},`+
+        ITEMS.map(([k])=> isR?0:(s[k]||0)).join(',')+`,${sessCost(s)},${isR?(s.groups||0):0},"${day.note||''}"\n`;
+    });
+  }
+  downloadCsv(csv, `阿水居服_民國${roc(y)}年${m}月.csv`);
+}
+
+/* ===================== 設定 ===================== */
+const WK_OPTS=[['zhongshan','中山'],['youmin','佑民'],['home','居服'],['out','外出/不排居服'],['fill','留空（自行加）']];
+function renderSettings(){
+  const f=document.getElementById('settingsForm');
+  const weeklyHtml=[1,2,3,4,5,6,0].map(dw=>{
+    const w=cfg.weekly[dw]||{type:'fill'};
+    return `<div class="row" style="margin:6px 0">
+      <span style="width:38px;font-weight:700">週${DOW_NAMES[dw]}</span>
+      <select id="wk_${dw}" style="width:auto;flex:0 0 140px">
+        ${WK_OPTS.map(([v,l])=>`<option value="${v}" ${w.type===v?'selected':''}>${l}</option>`).join('')}
+      </select>
+      <input id="wl_${dw}" style="flex:1" placeholder="外出說明（如 黎明物理治療）" value="${w.label||''}">
+    </div>`;
+  }).join('');
+  f.innerHTML=`
+   <label class="fld">居服月額度上限（元）</label><input id="s_cap" type="number" value="${cfg.monthlyCap}">
+   <div class="grid4" style="margin-top:10px">
+     ${ITEMS.map(([k,n])=>`<div><div class="h">${n} 單價</div><input id="p_${k}" type="number" value="${cfg.prices[k]}"></div>`).join('')}
+   </div>
+   <label class="fld">每日陪伴上限（組）</label><input id="s_acc" type="number" value="${cfg.accompanyDailyMax}">
+   <hr style="margin:14px 0;border:0;border-top:1px solid var(--line)">
+   <b>每週固定安排</b>
+   <p class="muted" style="margin:4px 0">設定每週各天預設做什麼。沒被手動改過的日子會自動跟著更新；個別特殊日仍可點格子單獨改。</p>
+   ${weeklyHtml}
+   <div class="chk"><input type="checkbox" id="s_showout" ${cfg.showOut?'checked':''}><label for="s_showout">行事曆顯示「外出」日</label></div>
+   <hr style="margin:14px 0;border:0;border-top:1px solid var(--line)">
+   <p class="muted" style="margin:4px 0">結束時間會依組數自動算（居服每組＝30 分），下面只設開始時間。</p>
+   <b>中山模板</b>
+   <label class="fld">開始時間</label><input id="zs_start" type="time" value="${cfg.templates.zhongshan.start}">
+   <div class="grid4">${['outing','care','feed','accompany'].map(k=>`<div><div class="h">${itemName(k)}</div><input id="zs_${k}" type="number" value="${cfg.templates.zhongshan[k]}"></div>`).join('')}</div>
+   <b>佑民模板</b>
+   <label class="fld">開始時間</label><input id="ym_start" type="time" value="${cfg.templates.youmin.start}">
+   <div class="grid4">${['outing','care','feed','accompany'].map(k=>`<div><div class="h">${itemName(k)}</div><input id="ym_${k}" type="number" value="${cfg.templates.youmin[k]}"></div>`).join('')}</div>
+   <hr style="margin:14px 0;border:0;border-top:1px solid var(--line)">
+   <b>居服預設（點格子選「居服」時帶入）</b>
+   <label class="fld">開始時間</label><input id="hpm_start" type="time" value="${cfg.homePM.start}">
+   <div class="grid4">${['outing','care','feed','accompany'].map(k=>`<div><div class="h">${itemName(k)}</div><input id="hpm_${k}" type="number" value="${cfg.homePM[k]}"></div>`).join('')}</div>
+   <hr style="margin:14px 0;border:0;border-top:1px solid var(--line)">
+   <label class="fld">喘息年度上限（組）</label><input id="s_rcap" type="number" value="${cfg.respiteCap}">
+   <label class="fld">每組時數</label><input id="s_hpg" type="number" value="${cfg.hoursPerGroup}">
+  `;
+}
+function itemName(k){ return ITEMS.find(([x])=>x===k)[1]; }
+function num(id){ return +document.getElementById(id).value||0; }
+function val(id){ return document.getElementById(id).value; }
+function saveSettings(){
+  cfg.monthlyCap=num('s_cap');
+  for(const[k] of ITEMS) cfg.prices[k]=num('p_'+k);
+  cfg.accompanyDailyMax=num('s_acc');
+  cfg.weekly={};
+  [1,2,3,4,5,6,0].forEach(dw=>{
+    const type=val('wk_'+dw), label=val('wl_'+dw).trim();
+    cfg.weekly[dw] = type==='out' ? {type, label: label||'外出'} : {type};
+  });
+  cfg.templates.zhongshan.start=val('zs_start');
+  cfg.templates.youmin.start=val('ym_start');
+  for(const k of ['outing','care','feed','accompany']){ cfg.templates.zhongshan[k]=num('zs_'+k); cfg.templates.youmin[k]=num('ym_'+k); }
+  cfg.homePM.start=val('hpm_start');
+  for(const k of ['outing','care','feed','accompany']) cfg.homePM[k]=num('hpm_'+k);
+  cfg.respiteCap=num('s_rcap'); cfg.hoursPerGroup=num('s_hpg');
+  cfg.showOut=document.getElementById('s_showout').checked;
+  save('cfg',cfg); alert('已儲存設定'); renderCare();
+}
+function resetSettings(){ if(confirm('還原成預設值？')){ cfg=structuredClone(DEFAULTS); save('cfg',cfg); renderSettings(); renderCare(); } }
+
+/* ===================== 分頁 / modal ===================== */
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===t));
+  document.getElementById('tab-care').style.display = t==='care'?'':'none';
+  document.getElementById('tab-settings').style.display = t==='settings'?'':'none';
+  if(t==='settings') renderSettings();
+}
+function openMask(id){ document.getElementById(id).classList.add('show'); }
+function closeMask(id){ document.getElementById(id).classList.remove('show'); }
+document.querySelectorAll('.mask').forEach(m=> m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show'); }));
+function downloadCsv(csv,name){
+  const blob=new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify({cfg,care:store},null,2)],{type:'application/json'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='阿水排班備份.json'; a.click();
+}
+function importData(file){
+  if(!file) return;
+  const r=new FileReader();
+  r.onload=()=>{
+    try{
+      const doc=JSON.parse(r.result);
+      if(!doc || (!doc.cfg && !doc.care)) throw new Error('格式不符');
+      if(!confirm('匯入會覆蓋目前全部資料，確定？')) return;
+      cfg=Object.assign(structuredClone(DEFAULTS), doc.cfg||{}); migrateCfg();
+      store=doc.care||{};
+      save('cfg',cfg); save('care',store);   // 同步寫本機＋雲端
+      renderCare(); alert('匯入完成');
+    }catch(e){ alert('匯入失敗：'+e.message); }
+  };
+  r.readAsText(file);
+}
+
+/* ===================== 雲端協作 (Supabase) ===================== */
+const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
+const SUPA_KEY='sb_publishable_Fvn4olj6jWuxbRU3Sqfyqw_S8XPefdj';
+const CLOUD = location.protocol.startsWith('http');   // file:// 打開＝純本機模式
+let sb=null, authEmail=null, pushTimer=null, cloudReady=false;
+
+function setCloudData(doc){
+  cfg = Object.assign(structuredClone(DEFAULTS), doc.cfg||{});
+  migrateCfg();
+  store = doc.care || {};
+}
+function cloudSave(){
+  if(!CLOUD || !cloudReady || !sb) return;
+  clearTimeout(pushTimer);
+  pushTimer=setTimeout(async ()=>{
+    try{ await sb.from('schedule').update({data:{cfg,care:store}, updated_by:authEmail}).eq('id','main'); }
+    catch(e){ console.warn('cloud save failed', e); }
+  }, 700);
+}
+async function sendLink(){
+  const email=document.getElementById('loginEmail').value.trim();
+  if(!email){ return; }
+  document.getElementById('loginBtn').disabled=true;
+  const {error}=await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: location.origin+location.pathname } });
+  document.getElementById('loginBtn').disabled=false;
+  document.getElementById('loginHint').textContent = error
+    ? ('寄送失敗：'+error.message)
+    : ('已寄出登入連結到 '+email+'，請到信箱點連結（可能在垃圾信）。');
+}
+async function signOut(){ if(sb){ await sb.auth.signOut(); } location.reload(); }
+function showGate(msg){
+  document.getElementById('appWrap').style.display='none';
+  document.getElementById('acct').style.display='none';
+  const g=document.getElementById('loginGate'); g.style.display='flex';
+  if(msg) document.getElementById('loginMsg').textContent=msg;
+}
+function showApp(){
+  document.getElementById('loginGate').style.display='none';
+  document.getElementById('appWrap').style.display='';
+  const a=document.getElementById('acct'); a.style.display='flex';
+  document.getElementById('acctEmail').textContent=authEmail;
+}
+async function afterLogin(session){
+  authEmail = session.user.email;
+  // 嘗試讀取（非白名單會被 RLS 擋，讀不到）
+  const { data, error } = await sb.from('schedule').select('data').eq('id','main').maybeSingle();
+  if(error || !data){
+    showGate('此帳號（'+authEmail+'）不在白名單，無法存取。請聯絡管理者加入，或換白名單內的 email。');
+    document.getElementById('loginHint').textContent='';
+    return;
+  }
+  const doc = data.data || {};
+  if(!doc || !doc.cfg){
+    // 雲端還沒有資料 → 用本機現有資料初始化上雲
+    cloudReady=true; cloudSave();
+  } else {
+    setCloudData(doc);
+  }
+  cloudReady=true;
+  showApp(); renderCare(); subscribeRealtime();
+}
+function subscribeRealtime(){
+  sb.channel('schedule-live')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'schedule',filter:'id=eq.main'}, payload=>{
+      if(payload.new.updated_by===authEmail) return;   // 忽略自己造成的更新
+      setCloudData(payload.new.data||{}); renderCare();
+    }).subscribe();
+}
+function localOnly(){ document.getElementById('appWrap').style.display=''; renderCare(); }
+async function boot(){
+  if(!CLOUD){ localOnly(); return; }              // 本機檔案：離線單機模式
+  if(!window.supabase){ localOnly(); return; }    // 函式庫載入失敗 → 退回單機
+  sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+  sb.auth.onAuthStateChange((_ev, session)=>{
+    if(session && !cloudReady) afterLogin(session);
+  });
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session) afterLogin(session);
+  else showGate();
+}
+
+/* ===================== 啟動 ===================== */
+boot();
+</script>
+</body>
+</html>
