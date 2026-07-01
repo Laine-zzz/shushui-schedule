@@ -96,7 +96,7 @@
     .cell{min-height:88px}
   }
 </style>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="./supabase.js"></script>
 </head>
 <body>
 <header>
@@ -754,14 +754,19 @@ function subscribeRealtime(){
 function localOnly(){ document.getElementById('appWrap').style.display=''; renderCare(); }
 async function boot(){
   if(!CLOUD){ localOnly(); return; }              // 本機檔案：離線單機模式
-  if(!window.supabase){ localOnly(); return; }    // 函式庫載入失敗 → 退回單機
-  sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
-  sb.auth.onAuthStateChange((_ev, session)=>{
-    if(session && !cloudReady) afterLogin(session);
-  });
-  const { data:{ session } } = await sb.auth.getSession();
-  if(session) afterLogin(session);
-  else showGate();
+  showGate();                                     // 先顯示登入畫面，避免整片空白
+  if(!window.supabase){
+    document.getElementById('loginHint').textContent='登入元件載入失敗，請重新整理；若使用 Brave/廣告攔截，請對本站關閉防護（Shields）。';
+    return;
+  }
+  try{
+    sb = window.supabase.createClient(SUPA_URL, SUPA_KEY);
+    sb.auth.onAuthStateChange((_ev, session)=>{ if(session && !cloudReady) afterLogin(session); });
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session) afterLogin(session);
+  }catch(e){
+    document.getElementById('loginHint').textContent='初始化錯誤：'+(e && e.message ? e.message : e);
+  }
 }
 
 /* ===================== 啟動 ===================== */
