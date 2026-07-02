@@ -85,6 +85,8 @@
   .seg button.on{background:#111827;color:#fff}
   /* respite */
   .rlist{width:100%}
+  .tag{display:inline-block;padding:1px 8px;border-radius:6px;font-size:11px;color:#fff}
+  .holi{color:#dc2626;font-size:10px;font-weight:600;margin-top:1px;line-height:1.2}
   @media(max-width:640px){
     .wrap{padding:10px}
     /* 手機月曆精簡格：只留標籤＋時間，明細與備註點進去看 */
@@ -282,6 +284,12 @@ const TYPES = {
   out:{label:'外出',cls:'b-out'}, off:{label:'',cls:'b-off'}
 };
 const DOW_NAMES = ['日','一','二','三','四','五','六'];
+// 中華民國國定假日（含補假），依政府行政機關辦公日曆表。假日中山/佑民不開診。
+const HOLIDAYS = {
+  '2025-01-01':'開國紀念日','2025-01-27':'小年夜','2025-01-28':'除夕','2025-01-29':'春節','2025-01-30':'春節','2025-01-31':'春節','2025-02-28':'和平紀念日','2025-04-03':'補假','2025-04-04':'兒童節/掃墓節','2025-05-30':'補假','2025-05-31':'端午節','2025-09-28':'孔子誕辰','2025-09-29':'補假','2025-10-06':'中秋節','2025-10-10':'國慶日','2025-10-24':'補假','2025-10-25':'光復節','2025-12-25':'行憲紀念日',
+  '2026-01-01':'開國紀念日','2026-02-15':'小年夜','2026-02-16':'除夕','2026-02-17':'春節','2026-02-18':'春節','2026-02-19':'春節','2026-02-20':'補假','2026-02-27':'補假','2026-02-28':'和平紀念日','2026-04-03':'補假','2026-04-04':'兒童節','2026-04-05':'清明節','2026-04-06':'補假','2026-05-01':'勞動節','2026-06-19':'端午節','2026-09-25':'中秋節','2026-09-28':'教師節','2026-10-09':'補假','2026-10-10':'國慶日','2026-10-25':'光復節','2026-10-26':'補假','2026-12-25':'行憲紀念日',
+  '2027-01-01':'開國紀念日','2027-02-04':'小年夜','2027-02-05':'除夕','2027-02-06':'春節','2027-02-07':'春節','2027-02-08':'春節','2027-02-09':'補假','2027-02-10':'補假','2027-02-28':'和平紀念日','2027-03-01':'補假','2027-04-04':'兒童節','2027-04-05':'清明節','2027-04-06':'補假','2027-04-30':'補假','2027-05-01':'勞動節','2027-06-09':'端午節','2027-09-15':'中秋節','2027-09-28':'教師節','2027-10-10':'國慶日','2027-10-11':'補假','2027-10-25':'光復節','2027-12-24':'補假','2027-12-25':'行憲紀念日','2027-12-31':'補假'
+};
 
 // 雲端變數（需在任何 save()/cloudSave() 呼叫之前宣告，避免初始化順序錯誤）
 const SUPA_URL='https://qsktnaiiquaaqprypysl.supabase.co';
@@ -336,6 +344,7 @@ function sessSummary(s){
   return ITEMS.filter(([k])=> (s[k]||0)>0).map(([k,n])=> n+'×'+s[k]).join('、');
 }
 function isRespite(day){ return day.type==='respite'; }
+function holidayName(dk){ return HOLIDAYS[dk] || ''; }
 function respiteUsedYear(gy){
   let t=0;
   for(const k in store){ if(!k.startsWith(gy+'-')) continue;
@@ -362,6 +371,9 @@ function homeSession(){
 function defaultDay(y,m,d){
   const dow=new Date(y,m-1,d).getDay();
   const w=cfg.weekly[dow]||{type:'fill'};
+  const isHol=!!HOLIDAYS[dkey(y,m,d)];
+  // 國定假日：中山/佑民不開診 → 當天不排復健（留空，仍可手動排居服/喘息）
+  if(isHol && (w.type==='zhongshan'||w.type==='youmin')) return { type:'off', sessions:[], note:'' };
   if(w.type==='zhongshan') return { type:'zhongshan', sessions:[templateSession(cfg.templates.zhongshan)], note:'' };
   if(w.type==='youmin')    return { type:'youmin',    sessions:[templateSession(cfg.templates.youmin)],    note:'' };
   if(w.type==='home')      return { type:'home', sessions:[homeSession()], note:'' };
@@ -444,6 +456,8 @@ function renderCare(){
     const meta=TYPES[day.type]||TYPES.off;
     const hideOut = day.type==='out' && !cfg.showOut;   // 外出日且關閉顯示 → 當空白
     let inner=`<div class="dnum">${d}</div>`;
+    const hol=HOLIDAYS[dk];
+    if(hol) inner+=`<div class="holi">${hol}</div>`;
     if(day.type!=='off' && !hideOut) inner+=`<div class="badge ${meta.cls}">${meta.label}</div>`;
     if(hideOut){
       /* 不顯示外出內容 */
@@ -510,6 +524,8 @@ function showDayDetail(dk){
   const meta=TYPES[day.type]||TYPES.off;
   const hideOut = day.type==='out' && !cfg.showOut;
   let html='';
+  const hol=HOLIDAYS[dk];
+  if(hol) html+=`<div class="holi" style="margin-bottom:6px">🇹🇼 ${hol}（假日，中山/佑民不開診）</div>`;
   if(day.type!=='off' && !hideOut) html+=`<span class="tag ${meta.cls}">${meta.label}</span>`;
   if(day.type==='out' && !hideOut){
     html+=`<div style="color:var(--out);font-weight:600;margin-top:6px">${day.note||'外出'}</div>`;
